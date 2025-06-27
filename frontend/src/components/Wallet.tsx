@@ -107,7 +107,11 @@ const Wallet: React.FC = () => {
       )}
 
       {loading && wallets.length === 0 ? (
-        <div className="loading">Loading wallets...</div>
+        <div className="wallets-grid">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="wallet-card" style={{background:'#222',color:'#fff',border:'1px solid #666',minHeight:'180px',opacity:0.7}} />
+          ))}
+        </div>
       ) : (
         <div className="wallets-section">
           {wallets.length === 0 ? (
@@ -127,7 +131,7 @@ const Wallet: React.FC = () => {
                   <div className="wallet-balance">
                     <span className="balance-label">Balance</span>
                     <span className="balance-amount">
-                      {wallet.currency === 'USD' ? '$' : wallet.currency === 'EUR' ? '€' : wallet.currency === 'GBP' ? '£' : ''}
+                      {wallet.currency === 'USD' ? '$' : wallet.currency === 'EUR' ? '\u20ac' : wallet.currency === 'GBP' ? '\u00a3' : ''}
                       {wallet.balance.toFixed(2)}
                     </span>
                   </div>
@@ -150,6 +154,7 @@ const Wallet: React.FC = () => {
                   value={newCurrency} 
                   onChange={e => setNewCurrency(e.target.value)}
                   disabled={loading}
+                  className="form-control"
                 >
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
@@ -178,6 +183,7 @@ const Wallet: React.FC = () => {
                       onChange={e => setSelectedWallet(e.target.value)}
                       required
                       disabled={loading}
+                      className="form-control"
                     >
                       <option value="">-- Select wallet --</option>
                       {wallets
@@ -203,6 +209,7 @@ const Wallet: React.FC = () => {
                       required
                       disabled={loading}
                       placeholder="0.00"
+                      className="form-control"
                     />
                   </div>
                   
@@ -215,6 +222,7 @@ const Wallet: React.FC = () => {
                       onChange={e => setDepositDescription(e.target.value)}
                       disabled={loading}
                       placeholder="Add a note to your deposit"
+                      className="form-control"
                     />
                   </div>
                   

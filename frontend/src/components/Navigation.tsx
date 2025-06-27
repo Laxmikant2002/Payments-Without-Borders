@@ -7,8 +7,11 @@ const Navigation: React.FC = () => {
     const navigate = useNavigate();
 
     const onLogout = () => {
-        handleLogout();
-        navigate('/');
+        if (window.confirm('Are you sure you want to log out?')) {
+            handleLogout();
+            localStorage.removeItem('token');
+            navigate('/login');
+        }
     };
 
     return (

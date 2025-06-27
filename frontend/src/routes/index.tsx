@@ -5,35 +5,24 @@ import Login from '../components/Login';
 import Register from '../components/Register';
 import ForgotPassword from '../components/ForgotPassword';
 import Dashboard from '../components/Dashboard';
-import Layout from '../components/Layout';
 import Profile from '../components/Profile';
 import UserProfile from '../components/UserProfile';
 import Security from '../components/Security';
 import VerifyEmail from '../components/VerifyEmail';
 import Wallet from '../components/Wallet';
 import Transactions from '../components/Transactions';
+import SendMoney from '../components/SendMoney';
+import ReceiveMoney from '../components/ReceiveMoney';
 import AuthGuard from '../components/AuthGuard';
+import NotFound from '../components/NotFound';
+import TransactionHistory from '../components/TransactionHistory';
 
 // Note: We're now using AuthGuard component instead of this legacy approach
-// const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-//     const { isLoggedIn, loading } = useAuth();
-//     
-//     if (loading) {
-//         return <div>Loading...</div>;
-//     }
-//     
-//     if (!isLoggedIn) {
-//         return <Navigate to="/login" />;
-//     }
-//     
-//     return children;
-// };
 
 const AppRoutes: React.FC = () => {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/" element={<Layout />}>
                     <Route index element={<Home />} />
                     
                     {/* Guest routes - redirect to dashboard if already logged in */}
@@ -84,12 +73,27 @@ const AppRoutes: React.FC = () => {
                             <Transactions />
                         </AuthGuard>
                     } />
+                    <Route path="send" element={
+                        <AuthGuard requireAuth>
+                            <SendMoney />
+                        </AuthGuard>
+                    } />
+                    <Route path="receive" element={
+                        <AuthGuard requireAuth>
+                            <ReceiveMoney />
+                        </AuthGuard>
+                    } />
                     
                     {/* Public but conditionally rendered routes */}
                     <Route path="verify-email" element={<VerifyEmail />} />
-                </Route>
-            </Routes>
-        </BrowserRouter>
+                    <Route path="/transactions/history" element={
+                        <AuthGuard>
+                            <TransactionHistory />
+                        </AuthGuard>
+                    } />
+                    <Route path="*" element={<NotFound />} />
+                </Routes>
+            </BrowserRouter>
     );
 };
 

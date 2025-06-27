@@ -11,43 +11,39 @@ const Transactions: React.FC = () => {
             try {
                 setLoading(true);
                 setError(null);
-                
-                // Fetch all recent transactions (larger limit)
                 const response = await getRecentTransactions(30);
                 if (response.success && response.data?.recentTransactions) {
                     setTransactions(response.data.recentTransactions);
                 }
             } catch (err: any) {
-                console.error("Error fetching transactions:", err);
                 setError(err.message || "Failed to load transactions");
             } finally {
                 setLoading(false);
             }
         };
-
         fetchTransactions();
     }, []);
 
-    // Helper function to format currency
     const formatCurrency = (amount: number, currency: string = 'USD'): string => {
         const currencySymbols: Record<string, string> = {
             'USD': '$',
-            'EUR': '€',
-            'GBP': '£',
-            'INR': '₹'
+            'EUR': '\u20ac',
+            'GBP': '\u00a3',
+            'INR': '\u20b9'
         };
-        
         return `${currencySymbols[currency] || ''}${amount.toFixed(2)}`;
     };
 
     return (
         <div className="transactions-container">
             <h1>Transactions History</h1>
-            
             {error && <div className="alert alert-danger">{error}</div>}
-            
             {loading ? (
-                <div className="loading-spinner">Loading transactions...</div>
+                <div className="transactions-table-container">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="skeleton-table-row" style={{marginBottom: '0.7rem'}} />
+                    ))}
+                </div>
             ) : (
                 <>
                     {transactions.length === 0 ? (
@@ -68,8 +64,8 @@ const Transactions: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {transactions.map(transaction => (
-                                        <tr key={transaction.id} className={`transaction-row ${transaction.status}`}>
+                                    {transactions.map((transaction, idx) => (
+                                        <tr key={transaction.id} className={`transaction-row ${transaction.status}`} style={{animationDelay: `${idx * 0.1 + 0.2}s`}}>
                                             <td>{new Date(transaction.createdAt).toLocaleDateString()} {new Date(transaction.createdAt).toLocaleTimeString()}</td>
                                             <td className="transaction-type">{transaction.type}</td>
                                             <td className={`amount ${transaction.type === 'deposit' ? 'positive' : transaction.type === 'withdrawal' ? 'negative' : ''}`}>
