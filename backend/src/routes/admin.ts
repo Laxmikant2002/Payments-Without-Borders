@@ -8,12 +8,13 @@ import { KYCStatus, TransactionStatus } from '../types';
 const router = Router();
 
 // Middleware to check if user is admin (for demo purposes, we'll check if email contains 'admin')
-const requireAdmin = (req: Request, res: Response, next: any) => {
+const requireAdmin = (req: Request, res: Response, next: any): void => {
   if (!req.user || !req.user.email.includes('admin')) {
-    return res.status(403).json({
+    res.status(403).json({
       success: false,
       message: 'Admin access required'
     });
+    return;
   }
   next();
 };

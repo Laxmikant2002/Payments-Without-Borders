@@ -1,129 +1,124 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
-import { logout } from './auth';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { storageService } from './storageService';
 
-// Base URL for API calls
-const API_BASE_URL = 'http://localhost:5000';
+export class ApiClient {
+  private client: AxiosInstance;
 
-// Token-related constants
-const TOKEN_KEY = 'token';
-const USER_KEY = 'user';
-const TOKEN_EXPIRY_KEY = 'tokenExpiry';
+  constructor(baseURL: string = import.meta.env.VITE_API_BASE_URL || '/api') {
+    this.client = axios.create({
+      baseURL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-/**
- * Create a configured Axios instance for API calls
- */
-export const createApiClient = (config: AxiosRequestConfig = {}): AxiosInstance => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    ...config
-  });
+    this.setupInterceptors();
+  }
 
-  // Request interceptor to add authorization token
-  client.interceptors.request.use(
-    (config) => {
-      const token = localStorage.getItem(TOKEN_KEY);
-      
-      if (token) {
-        // Check token expiration if available
-        const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-        
-        if (expiry && new Date(expiry) < new Date()) {
-          // Token is expired, clear auth data and redirect to login
-          clearAuthData();
-          window.location.href = '/login?expired=true';
-          return Promise.reject(new Error('Authentication token expired'));
+  private setupInterceptors() {
+    // Request interceptor to add auth token
+    this.client.interceptors.request.use(
+      (config) => {
+        const token = storageService.getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
-        
-        // Add token to headers
-        config.headers.Authorization = `Bearer ${token}`;
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
       }
-      
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
+    );
 
-  // Response interceptor for global error handling
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError) => {
-      if (error.response) {
-        const { status } = error.response;
-        
-        // Handle authentication errors
-        if (status === 401) {
-          // Unauthorized - token might be invalid or expired
-          clearAuthData();
+    // Response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response: AxiosResponse) => {
+        return response;
+      },
+      async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
           
-          // Only redirect if not already on login page
-          if (!window.location.pathname.includes('/login')) {
-            window.location.href = '/login?session=expired';
+          try {
+            // Try to refresh token
+            const refreshToken = storageService.getRefreshToken();
+            if (refreshToken) {
+              const response = await this.client.post('/auth/refresh', {
+                refreshToken,
+              });
+              
+              const { token } = response.data.data;
+              storageService.setToken(token);
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              
+              return this.client(originalRequest);
+            }
+          } catch (refreshError) {
+            // Refresh failed, redirect to login
+            storageService.clearAll();
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
           }
         }
+
+        return Promise.reject(error);
       }
-      
-      return Promise.reject(error);
-    }
-  );
-
-  return client;
-};
-
-/**
- * Clear all authentication data from local storage
- */
-export const clearAuthData = (): void => {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(TOKEN_EXPIRY_KEY);
-};
-
-/**
- * Store authentication data in local storage
- */
-export const setAuthData = (token: string, user: any, expiresIn?: number): void => {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  
-  // Calculate token expiry if expiresIn is provided (in seconds)
-  if (expiresIn) {
-    const expiryDate = new Date();
-    expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
-    localStorage.setItem(TOKEN_EXPIRY_KEY, expiryDate.toISOString());
+    );
   }
-};
 
-/**
- * Get authentication token from local storage
- */
-export const getAuthToken = (): string | null => {
-  return localStorage.getItem(TOKEN_KEY);
-};
-
-/**
- * Check if user is authenticated
- */
-export const isAuthenticated = (): boolean => {
-  const token = getAuthToken();
-  
-  if (!token) {
-    return false;
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.get<T>(url, config);
+    return response.data;
   }
-  
-  // Check if token is expired
-  const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-  if (expiry && new Date(expiry) < new Date()) {
-    clearAuthData();
-    return false;
+
+  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.post<T>(url, data, config);
+    return response.data;
   }
-  
-  return true;
-};
 
-// Create a default API client instance
-const apiClient = createApiClient();
+  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.put<T>(url, data, config);
+    return response.data;
+  }
 
-export default apiClient;
+  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.patch<T>(url, data, config);
+    return response.data;
+  }
+
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.delete<T>(url, config);
+    return response.data;
+  }
+
+  // File upload method
+  async uploadFile<T>(url: string, file: File, onProgress?: (progress: number) => void): Promise<T> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const config: AxiosRequestConfig = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    };
+
+    const response = await this.client.post<T>(url, formData, config);
+    return response.data;
+  }
+
+  // Get the axios instance for custom usage
+  getClient(): AxiosInstance {
+    return this.client;
+  }
+}
+
+export const apiClient = new ApiClient();

@@ -1,119 +1,235 @@
-# Pay Hack - Secure Payment Application
+# Payments Without Borders - Frontend
 
-This is a secure payment application built using React with TypeScript, featuring JWT authentication, wallet management, transaction tracking, and a comprehensive dashboard. The application includes secure routing, two-factor authentication, email verification, and secure API interactions using Axios.
+A modern React TypeScript frontend application for the cross-border payment system powered by Mojaloop.
+
+## 🚀 Features
+
+### Authentication & Security
+- Secure login/register with JWT tokens
+- Two-factor authentication (2FA)
+- Password reset functionality
+- Session management
+- Role-based access control (User/Admin)
+
+### Payment Features
+- **Domestic Transfers**: Send money within the same country
+- **Cross-Border Payments**: International transfers via Mojaloop
+- **Real-time Exchange Rates**: Live currency conversion
+- **Transaction History**: Comprehensive transaction tracking
+- **Payment Receipts**: Downloadable transaction receipts
+
+### KYC & Compliance
+- Document upload and verification
+- Real-time KYC status updates
+- Address verification
+- Phone and email verification
+- Compliance requirement checking by country
+
+### Real-time Features
+- WebSocket integration for live updates
+- Real-time transaction status changes
+- Instant notifications
+- Live exchange rate updates
+- System alerts and announcements
+
+### User Experience
+- Responsive Material-UI design
+- Dark/Light theme support
+- Multi-language support (coming soon)
+- Offline capability (coming soon)
+- Progressive Web App (PWA) features
+
+### Admin Features
+- User management and oversight
+- KYC review and approval
+- Transaction monitoring
+- System health dashboard
+- Mojaloop integration management
+
+## 🛠️ Tech Stack
+
+- **Framework**: React 18 with TypeScript
+- **State Management**: Redux Toolkit
+- **UI Library**: Material-UI (MUI) v5
+- **Routing**: React Router v6
+- **HTTP Client**: Axios
+- **Real-time**: Socket.IO Client
+- **Form Handling**: React Hook Form
+- **Validation**: Yup
+- **Build Tool**: Vite
+- **Development**: Hot Module Replacement
+
+## 📁 Project Structure
+
+```
+src/
+├── components/           # Reusable UI components
+│   ├── auth/            # Authentication components
+│   ├── common/          # Common/shared components
+│   ├── dashboard/       # Dashboard specific components
+│   ├── forms/           # Form components
+│   ├── layout/          # Layout components
+│   ├── notifications/   # Notification components
+│   ├── transactions/    # Transaction components
+│   └── user/            # User profile components
+├── hooks/               # Custom React hooks
+├── pages/               # Page components
+│   ├── admin/           # Admin pages
+│   ├── auth/            # Authentication pages
+│   └── error/           # Error pages
+├── services/            # API services
+├── store/               # Redux store and slices
+├── types/               # TypeScript type definitions
+├── utils/               # Utility functions
+└── assets/              # Static assets
+```
+
+## 🚦 Getting Started
 
 ### Prerequisites
-
-Make sure you have the following installed:
-
-- Node.js (version 14 or higher)
-- npm (comes with Node.js)
+- Node.js 18+ and npm/yarn
+- Backend API server running on port 8000
 
 ### Installation
 
-1. Clone the repository:
-
-   ```
-   git clone <repository-url>
-   ```
-
-2. Navigate to the project directory:
-
-   ```
-   cd pay_hack/frontend
-   ```
-
-3. Install the dependencies:
-
-   ```
+1. **Clone and setup:**
+   ```bash
+   cd frontend
    npm install
    ```
 
-### Running the Application
+2. **Environment Configuration:**
+   Create a `.env` file:
+   ```env
+   VITE_API_BASE_URL=http://localhost:8000/api
+   VITE_SOCKET_URL=http://localhost:8000
+   VITE_APP_NAME=Payments Without Borders
+   VITE_APP_VERSION=1.0.0
+   ```
 
-To run the application in development mode, use the following command:
+3. **Start Development Server:**
+   ```bash
+   npm run dev
+   ```
 
-```
-npm start
-```
+4. **Build for Production:**
+   ```bash
+   npm run build
+   ```
 
-This will start the development server and open the application in your default web browser.
+## 🔧 Available Scripts
 
-### Building for Production
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run type-check` - Run TypeScript checks
 
-To build the application for production, use the following command:
+## 🏗️ Key Components
 
-```
-npm run build
-```
+### Service Layer
+- **authService**: Authentication and user management
+- **transactionService**: Payment processing and history
+- **userService**: User profile and preferences
+- **complianceService**: KYC and document management
+- **notificationService**: Real-time notifications
+- **mojaloopService**: Mojaloop integration
+- **socketService**: WebSocket real-time communication
 
-This will create an optimized build of the application in the `build` directory.
+### State Management
+- **authSlice**: User authentication state
+- **transactionSlice**: Transaction data and operations
+- **userSlice**: User profile information
+- **notificationSlice**: Notification management
+- **complianceSlice**: KYC and compliance status
+- **mojaloopSlice**: Mojaloop connection status
+- **uiSlice**: UI state and preferences
 
-### Folder Structure
+### Pages & Components
+- **Authentication**: Login, Register, Password Reset
+- **Dashboard**: Account overview and quick actions
+- **Payments**: Send money forms and transaction history
+- **Profile**: User settings and preferences
+- **KYC**: Document upload and verification
+- **Admin**: User management and system monitoring
 
-- `public/`: Contains static files like `index.html` and `favicon.ico`.
-- `src/`: Contains the source code for the application.
-  - `components/`: React components for the UI.
-    - `App.tsx`: Main application component.
-    - `Dashboard.tsx`: Dashboard component showing wallet balances and transactions.
-    - `Layout.tsx`: Layout wrapper for consistent UI.
-    - `Login.tsx` & `Register.tsx`: Authentication forms.
-    - `Navigation.tsx`: Navigation bar component.
-    - `Wallet.tsx`: Wallet management interface.
-    - `Security.tsx`: Two-factor authentication and email verification.
-    - `Transactions.tsx`: Transaction history component.
-    - `TokenRefresher.tsx`: Background component for JWT refresh.
-    - `AuthGuard.tsx`: Route protection component.
-  - `contexts/`: React context providers.
-    - `AuthContext.tsx`: Authentication context for user state management.
-  - `hooks/`: Custom React hooks.
-    - `useApi.ts`: Hook for API interactions.
-    - `useForm.ts`: Form handling hook.
-  - `routes/`: Routing configuration.
-    - `index.tsx`: Main route definitions with auth protection.
-  - `services/`: API and business logic.
-    - `api.ts`: API configuration and request helpers.
-    - `auth.ts`: Authentication service.
-    - `wallet.ts`: Wallet and transaction services.
-  - `types/`: TypeScript type definitions.
-- `package.json`: Project metadata and dependencies.
-- `tsconfig.json`: TypeScript configuration file.
+## 🌐 API Integration
 
-### Features
+The frontend integrates with the backend REST API:
 
-- **Secure Authentication**
-  - JWT-based authentication with automatic token refresh
-  - Two-factor authentication (2FA)
-  - Email verification
-  - Protected routes
+- **Base URL**: `http://localhost:8000/api`
+- **Authentication**: Bearer JWT tokens
+- **Real-time**: WebSocket connection for live updates
+- **File Upload**: Multipart form data for documents
 
-- **Wallet Management**
-  - Create wallets in multiple currencies
-  - View wallet balances and details
-  - Deposit funds to wallets
-  - Track transaction history
+### Key Endpoints
+- `POST /auth/login` - User login
+- `POST /auth/register` - User registration
+- `GET /transactions` - Get transactions
+- `POST /cross-border/transfers` - Initiate cross-border transfer
+- `GET /compliance/kyc-status` - Get KYC status
+- `POST /mojaloop/party-lookup` - Lookup payment recipient
 
-- **Dashboard**
-  - Summary of total balances across all wallets
-  - Currency breakdown visualization
-  - Recent transactions list
-  - Wallet quick view
+## 🔐 Security Features
 
-- **Security**
-  - Secure API calls with token authentication
-  - Protected routes with AuthGuard
-  - Input validation
+- JWT token authentication with refresh
+- Automatic token refresh handling
+- Protected routes with role-based access
+- Secure file upload with validation
+- XSS and CSRF protection
+- Input validation and sanitization
 
-### Backend Integration
+## 📱 Responsive Design
 
-This frontend application connects to a Node.js/Express backend (in the `../backend` directory) that provides the following:
+The application is fully responsive and works across:
+- Desktop browsers (Chrome, Firefox, Safari, Edge)
+- Tablet devices (iPad, Android tablets)
+- Mobile phones (iOS, Android)
+- Progressive Web App (PWA) capabilities
 
-- User authentication and management API
-- Wallet and transaction API
-- Security features like 2FA and email verification
+## 🌍 Internationalization
 
-To run the complete application, make sure to also set up and run the backend service.
+Future support for multiple languages:
+- English (default)
+- French
+- Spanish
+- Portuguese
+- Swahili
 
-### License
+## 🚀 Performance Optimizations
 
-This project is licensed under the MIT License.
+- Code splitting with React.lazy()
+- Image optimization and lazy loading
+- Bundle size optimization with Vite
+- Service worker for caching (coming soon)
+- Virtualized lists for large datasets
+
+## 🧪 Testing (Coming Soon)
+
+- Unit tests with Jest and React Testing Library
+- Integration tests for API services
+- E2E tests with Cypress
+- Performance testing with Lighthouse
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
+
+---
+
+Built with ❤️ for financial inclusion and cross-border payments.
