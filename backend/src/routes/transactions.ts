@@ -106,15 +106,21 @@ router.get('/',
         data: {
           transactions: transactions.map(tx => ({
             id: tx._id,
+            senderId: tx.senderId,
+            receiverId: tx.receiverId,
             type: tx.type,
             amount: tx.amount,
             currency: tx.currency,
+            targetCurrency: tx.targetCurrency,
+            exchangeRate: tx.exchangeRate,
+            finalAmount: tx.finalAmount,
             status: tx.status,
-            senderId: tx.senderId,
-            receiverId: tx.receiverId,
             description: tx.description,
+            fees: tx.fees,
+            mojaloopTransactionId: tx.mojaloopTransactionId,
             createdAt: tx.createdAt,
-            updatedAt: tx.updatedAt
+            updatedAt: tx.updatedAt,
+            completedAt: tx.completedAt
           })),
           pagination: {
             currentPage: page,

@@ -15,6 +15,7 @@ import {
 import {
   Dashboard as DashboardIcon,
   Send as SendIcon,
+  CallReceived as ReceiveIcon,
   History as HistoryIcon,
   AccountBalance as AccountBalanceIcon,
   Person as PersonIcon,
@@ -47,6 +48,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Send Money', icon: <SendIcon />, path: '/send' },
+  { text: 'Receive Money', icon: <ReceiveIcon />, path: '/receive' },
   { text: 'Transactions', icon: <HistoryIcon />, path: '/transactions' },
   { text: 'Cross-Border', icon: <ExchangeIcon />, path: '/cross-border' },
   { text: 'Exchange Rates', icon: <TrendingUpIcon />, path: '/rates' },

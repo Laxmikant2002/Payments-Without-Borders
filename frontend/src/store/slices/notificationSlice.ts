@@ -163,7 +163,7 @@ const notificationSlice = createSlice({
         const index = state.notifications.findIndex(n => n.id === action.payload);
         if (index !== -1) {
           const notification = state.notifications[index];
-          if (!notification.isRead) {
+          if (notification && !notification.isRead) {
             state.unreadCount = Math.max(0, state.unreadCount - 1);
           }
           state.notifications.splice(index, 1);

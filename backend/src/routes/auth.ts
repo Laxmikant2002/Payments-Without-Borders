@@ -74,11 +74,21 @@ router.post('/register', [
     const { email, password, firstName, lastName, phoneNumber, countryCode, dateOfBirth } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      res.status(400).json({
+    try {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        res.status(400).json({
+          success: false,
+          message: 'User already exists with this email'
+        });
+        return;
+      }
+    } catch (dbError: any) {
+      // If MongoDB is not available, return appropriate error
+      logger.error('Database connection error during registration', { error: dbError.message });
+      res.status(503).json({
         success: false,
-        message: 'User already exists with this email'
+        message: 'Database temporarily unavailable. Please try again later.'
       });
       return;
     }
@@ -102,7 +112,17 @@ router.post('/register', [
       isActive: true
     });
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (dbError: any) {
+      // If MongoDB is not available, return appropriate error
+      logger.error('Database connection error during user creation', { error: dbError.message });
+      res.status(503).json({
+        success: false,
+        message: 'Database temporarily unavailable. Please try again later.'
+      });
+      return;
+    }
 
     // Generate JWT token for registration
     const jwtSecret = process.env.JWT_SECRET;
@@ -198,7 +218,19 @@ router.post('/login', [
     const { email, password } = req.body;
 
     // Find user
-    const user = await User.findOne({ email });
+    let user;
+    try {
+      user = await User.findOne({ email });
+    } catch (dbError: any) {
+      // If MongoDB is not available, return appropriate error
+      logger.error('Database connection error during login', { error: dbError.message });
+      res.status(503).json({
+        success: false,
+        message: 'Database temporarily unavailable. Please try again later.'
+      });
+      return;
+    }
+
     if (!user) {
       res.status(401).json({
         success: false,
@@ -247,7 +279,12 @@ router.post('/login', [
 
     // Update last login
     user.lastLogin = new Date();
-    await user.save();
+    try {
+      await user.save();
+    } catch (dbError: any) {
+      // Log the error but don't fail the login just because we can't update last login
+      logger.warn('Failed to update last login time', { error: dbError.message, userId: user._id });
+    }
 
     logger.info('User logged in successfully', { userId: user._id, email });
 
@@ -312,7 +349,19 @@ router.get('/verify', async (req: Request, res: Response): Promise<void> => {
     }
 
     const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
-    const user = await User.findById(decoded.userId).select('-password');
+    
+    let user;
+    try {
+      user = await User.findById(decoded.userId).select('-password');
+    } catch (dbError: any) {
+      // If MongoDB is not available, return appropriate error
+      logger.error('Database connection error during token verification', { error: dbError.message });
+      res.status(503).json({
+        success: false,
+        message: 'Database temporarily unavailable. Please try again later.'
+      });
+      return;
+    }
 
     if (!user || !user.isActive) {
       res.status(401).json({

@@ -15,6 +15,14 @@ export interface User {
   lastLogin?: Date;
   addresses?: Address[];
   preferences?: UserPreferences;
+  kycDocuments?: {
+    type: string;
+    number: string;
+    url: string;
+    additionalInfo: string;
+    submittedAt: Date;
+  };
+  kycRejectionReason?: string;
 }
 
 export interface Address {
@@ -167,6 +175,7 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   data?: Record<string, any>;
   isRead: boolean;
   createdAt: Date;
@@ -285,6 +294,15 @@ export interface AlertAction {
 
 // Exchange Rate Types
 export interface ExchangeRate {
+  fromCurrency: string;
+  toCurrency: string;
+  rate: number;
+  timestamp: Date;
+  provider: string;
+}
+
+// Exchange Rate Types (legacy support)
+export interface ExchangeRateLegacy {
   from: string;
   to: string;
   rate: number;

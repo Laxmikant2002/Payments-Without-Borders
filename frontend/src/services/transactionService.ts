@@ -37,10 +37,24 @@ export class TransactionService {
       if (filters?.maxAmount) params.append('maxAmount', filters.maxAmount.toString());
       if (filters?.currency) params.append('currency', filters.currency);
 
-      const response = await apiClient.get<PaginatedResponse<Transaction>>(
+      const response = await apiClient.get<any>(
         `/transactions?${params.toString()}`
       );
-      return response;
+      
+      // Transform the response to match our expected structure
+      return {
+        success: response.success,
+        data: {
+          items: response.data.transactions,
+          pagination: {
+            currentPage: response.data.pagination.currentPage,
+            totalPages: response.data.pagination.totalPages,
+            total: response.data.pagination.totalTransactions,
+            hasNext: response.data.pagination.hasNextPage,
+            hasPrev: response.data.pagination.hasPrevPage,
+          }
+        }
+      };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch transactions');
     }
@@ -149,7 +163,7 @@ export class TransactionService {
   async getCurrentExchangeRate(from: string, to: string): Promise<ExchangeRate> {
     try {
       const response = await apiClient.get<ApiResponse<ExchangeRate>>(
-        `/exchange-rates/${from}/${to}`
+        `/cross-border/rates?from=${from}&to=${to}`
       );
       if (response.success && response.data) {
         return response.data;

@@ -8,6 +8,7 @@ export { notificationService } from './notificationService';
 export { complianceService } from './complianceService';
 export { mojaloopService } from './mojaloopService';
 export { socketService } from './socketService';
+export { crossBorderService } from './crossBorderService';
 
 // Export service classes for direct instantiation if needed
 export { ApiClient } from './apiClient';
@@ -19,3 +20,4 @@ export { NotificationService } from './notificationService';
 export { ComplianceService } from './complianceService';
 export { MojaloopService } from './mojaloopService';
 export { SocketService } from './socketService';
+export { CrossBorderService } from './crossBorderService';

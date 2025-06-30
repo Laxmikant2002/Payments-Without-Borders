@@ -259,7 +259,7 @@ const Login: React.FC = () => {
               Email: demo@paywithoutborders.com
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Password: demo123
+              Password: Demo@123
             </Typography>
           </Box>
         </CardContent>

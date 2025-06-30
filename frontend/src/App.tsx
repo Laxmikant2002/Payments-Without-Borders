@@ -5,8 +5,19 @@ import { CssBaseline } from '@mui/material';
 import { store } from './store';
 import Layout from './components/layout/Layout';
 import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import SendMoney from './pages/SendMoney';
+import ReceiveMoney from './pages/ReceiveMoney';
+import TransactionsPage from './pages/TransactionsPage';
+import ExchangeRatesPage from './pages/ExchangeRatesPage';
+import CrossBorderPage from './pages/CrossBorderPage';
+import ProfilePage from './pages/ProfilePage';
+import KYCPage from './pages/KYCPage';
+import NotificationsPage from './pages/NotificationsPage';
+import SupportPage from './pages/SupportPage';
+import NotFoundPage from './pages/error/NotFoundPage';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from './store';
 import { getCurrentUser } from './store/slices/authSlice';
@@ -36,6 +47,8 @@ const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route
         path="/*"
         element={
@@ -47,14 +60,16 @@ const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="send" element={<SendMoney />} />
-        <Route path="transactions" element={<div>Transactions Page</div>} />
-        <Route path="cross-border" element={<div>Cross-Border Page</div>} />
-        <Route path="rates" element={<div>Exchange Rates Page</div>} />
-        <Route path="profile" element={<div>Profile Page</div>} />
-        <Route path="kyc" element={<div>KYC Page</div>} />
-        <Route path="notifications" element={<div>Notifications Page</div>} />
-        <Route path="admin" element={<div>Admin Dashboard</div>} />
-        <Route path="support" element={<div>Support Page</div>} />
+        <Route path="receive" element={<ReceiveMoney />} />
+        <Route path="transactions" element={<TransactionsPage />} />
+        <Route path="cross-border" element={<CrossBorderPage />} />
+        <Route path="rates" element={<ExchangeRatesPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="kyc" element={<KYCPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="support" element={<SupportPage />} />
+        <Route path="admin" element={<div>Admin Dashboard - Coming Soon</div>} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   );

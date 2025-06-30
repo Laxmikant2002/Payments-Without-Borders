@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -22,6 +22,7 @@ import {
   MenuItem,
   useTheme,
   alpha,
+  IconButton,
 } from '@mui/material';
 import {
   Send,
@@ -30,42 +31,45 @@ import {
   Receipt,
   CheckCircle,
   Search,
+  Refresh,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import toast from 'react-hot-toast';
+import { crossBorderService, Currency, ExchangeRate } from '../services/crossBorderService';
 
 const steps = ['Recipient', 'Amount', 'Review', 'Confirmation'];
 
-const currencies = [
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'GBP', name: 'British Pound', symbol: '£' },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
-  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
-];
-
 const schema = yup.object().shape({
-  recipientEmail: yup.string().email('Invalid email').required('Recipient email is required'),
-  recipientName: yup.string().required('Recipient name is required'),
-  amount: yup.number().positive('Amount must be positive').required('Amount is required'),
-  currency: yup.string().required('Currency is required'),
-  description: yup.string(),
+  receiverId: yup.string().required('Recipient ID is required'),
+  receiverName: yup.string().required('Recipient name is required'),
+  receiverPhone: yup.string().optional(),
+  amount: yup.number().positive('Amount must be positive').min(0.01, 'Minimum amount is 0.01').required('Amount is required'),
+  sourceCurrency: yup.string().required('Source currency is required'),
+  targetCurrency: yup.string().required('Target currency is required'),
+  description: yup.string().optional().max(200, 'Description must be less than 200 characters'),
 });
 
 interface SendMoneyFormData {
-  recipientEmail: string;
-  recipientName: string;
+  receiverId: string;
+  receiverName: string;
+  receiverPhone?: string;
   amount: number;
-  currency: string;
-  description: string;
+  sourceCurrency: string;
+  targetCurrency: string;
+  description?: string;
 }
 
 const SendMoney: React.FC = () => {
   const theme = useTheme();
   const [activeStep, setActiveStep] = useState(0);
-  const [exchangeRate] = useState(1.0);
-  const [fees] = useState(2.50);
+  const [exchangeRate, setExchangeRate] = useState<ExchangeRate | null>(null);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [fees, setFees] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [exchangeLoading, setExchangeLoading] = useState(false);
+  const [transferResult, setTransferResult] = useState<any>(null);
 
   const {
     control,
@@ -73,18 +77,85 @@ const SendMoney: React.FC = () => {
     watch,
     formState: { errors },
   } = useForm<SendMoneyFormData>({
-    resolver: yupResolver(schema),
+    resolver: yupResolver(schema) as any,
     defaultValues: {
-      recipientEmail: '',
-      recipientName: '',
+      receiverId: '',
+      receiverName: '',
+      receiverPhone: '',
       amount: 0,
-      currency: 'USD',
+      sourceCurrency: 'USD',
+      targetCurrency: 'EUR',
       description: '',
     },
   });
 
   const watchedAmount = watch('amount');
-  const watchedCurrency = watch('currency');
+  const watchedSourceCurrency = watch('sourceCurrency');
+  const watchedTargetCurrency = watch('targetCurrency');
+
+  // Load supported currencies on component mount
+  useEffect(() => {
+    const loadCurrencies = async () => {
+      try {
+        const supportedCurrencies = await crossBorderService.getSupportedCurrencies();
+        setCurrencies(supportedCurrencies);
+      } catch (error) {
+        console.error('Failed to load currencies:', error);
+        // Fallback to default currencies if API fails
+        setCurrencies([
+          { code: 'USD', name: 'US Dollar', symbol: '$', dfspId: 'usd-dfsp' },
+          { code: 'EUR', name: 'Euro', symbol: '€', dfspId: 'eur-dfsp' },
+          { code: 'GBP', name: 'British Pound', symbol: '£', dfspId: 'gbp-dfsp' },
+          { code: 'NGN', name: 'Nigerian Naira', symbol: '₦', dfspId: 'ngn-dfsp' },
+          { code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh', dfspId: 'kes-dfsp' },
+        ]);
+      }
+    };
+
+    loadCurrencies();
+  }, []);
+
+  // Fetch exchange rate when currencies change
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      if (watchedSourceCurrency && watchedTargetCurrency && watchedSourceCurrency !== watchedTargetCurrency) {
+        setExchangeLoading(true);
+        try {
+          const rate = await crossBorderService.getExchangeRate(watchedSourceCurrency, watchedTargetCurrency);
+          setExchangeRate(rate);
+        } catch (error) {
+          console.error('Failed to fetch exchange rate:', error);
+          toast.error('Failed to fetch exchange rate');
+        }
+        setExchangeLoading(false);
+      } else {
+        setExchangeRate(null);
+      }
+    };
+
+    fetchExchangeRate();
+  }, [watchedSourceCurrency, watchedTargetCurrency]);
+
+  // Calculate fees when amount or currencies change
+  useEffect(() => {
+    const calculateFees = async () => {
+      if (watchedAmount > 0 && watchedSourceCurrency && watchedTargetCurrency) {
+        try {
+          const calculatedFees = await crossBorderService.calculateFees(
+            watchedAmount,
+            watchedSourceCurrency,
+            watchedTargetCurrency
+          );
+          setFees(calculatedFees);
+        } catch (error) {
+          console.error('Failed to calculate fees:', error);
+        }
+      }
+    };
+
+    const debounceTimer = setTimeout(calculateFees, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [watchedAmount, watchedSourceCurrency, watchedTargetCurrency]);
 
   const handleNext = () => {
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -94,14 +165,41 @@ const SendMoney: React.FC = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const onSubmit = (data: SendMoneyFormData) => {
-    console.log('Transfer data:', data);
-    handleNext();
+  const onSubmit = async (data: SendMoneyFormData) => {
+    if (activeStep === steps.length - 2) {
+      // Final step - submit the transfer
+      setLoading(true);
+      try {
+        const result = await crossBorderService.initiateTransfer(data);
+        setTransferResult(result);
+        toast.success('Transfer initiated successfully!');
+        handleNext();
+      } catch (error: any) {
+        toast.error(error.message || 'Transfer failed');
+      }
+      setLoading(false);
+    } else {
+      // Move to next step
+      handleNext();
+    }
   };
 
-  const calculateTotal = () => {
-    return (watchedAmount * exchangeRate) + fees;
+  const refreshExchangeRate = async () => {
+    if (watchedSourceCurrency && watchedTargetCurrency && watchedSourceCurrency !== watchedTargetCurrency) {
+      setExchangeLoading(true);
+      try {
+        const rate = await crossBorderService.getExchangeRate(watchedSourceCurrency, watchedTargetCurrency);
+        setExchangeRate(rate);
+        toast.success('Exchange rate refreshed');
+      } catch (error) {
+        toast.error('Failed to refresh exchange rate');
+      }
+      setExchangeLoading(false);
+    }
   };
+
+  const convertedAmount = watchedAmount && exchangeRate ? watchedAmount * exchangeRate.rate : 0;
+  const totalDebit = watchedAmount + (fees?.total || 0);
 
   const renderStepContent = (step: number) => {
     switch (step) {
@@ -115,16 +213,15 @@ const SendMoney: React.FC = () => {
             <Grid container spacing={3}>
               <Grid item xs={12}>
                 <Controller
-                  name="recipientEmail"
+                  name="receiverId"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       fullWidth
-                      label="Recipient Email"
-                      type="email"
-                      error={!!errors.recipientEmail}
-                      helperText={errors.recipientEmail?.message}
+                      label="Recipient ID or Phone Number"
+                      error={!!errors.receiverId}
+                      helperText={errors.receiverId?.message || "Enter recipient's ID, phone number, or email"}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -139,15 +236,15 @@ const SendMoney: React.FC = () => {
               
               <Grid item xs={12}>
                 <Controller
-                  name="recipientName"
+                  name="receiverName"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       fullWidth
                       label="Recipient Name"
-                      error={!!errors.recipientName}
-                      helperText={errors.recipientName?.message}
+                      error={!!errors.receiverName}
+                      helperText={errors.receiverName?.message}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -155,6 +252,22 @@ const SendMoney: React.FC = () => {
                           </InputAdornment>
                         ),
                       }}
+                    />
+                  )}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Controller
+                  name="receiverPhone"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Recipient Phone (Optional)"
+                      error={!!errors.receiverPhone}
+                      helperText={errors.receiverPhone?.message}
                     />
                   )}
                 />
@@ -199,17 +312,36 @@ const SendMoney: React.FC = () => {
                 />
               </Grid>
               
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <Controller
-                  name="currency"
+                  name="sourceCurrency"
                   control={control}
                   render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.currency}>
-                      <InputLabel>Currency</InputLabel>
-                      <Select {...field} label="Currency">
+                    <FormControl fullWidth error={!!errors.sourceCurrency}>
+                      <InputLabel>From Currency</InputLabel>
+                      <Select {...field} label="From Currency">
                         {currencies.map((currency) => (
                           <MenuItem key={currency.code} value={currency.code}>
-                            {currency.symbol} {currency.code}
+                            {currency.symbol} {currency.code} - {currency.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Controller
+                  name="targetCurrency"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControl fullWidth error={!!errors.targetCurrency}>
+                      <InputLabel>To Currency</InputLabel>
+                      <Select {...field} label="To Currency">
+                        {currencies.map((currency) => (
+                          <MenuItem key={currency.code} value={currency.code}>
+                            {currency.symbol} {currency.code} - {currency.name}
                           </MenuItem>
                         ))}
                       </Select>
@@ -230,6 +362,8 @@ const SendMoney: React.FC = () => {
                       multiline
                       rows={3}
                       placeholder="What's this transfer for?"
+                      error={!!errors.description}
+                      helperText={errors.description?.message}
                     />
                   )}
                 />
@@ -237,34 +371,57 @@ const SendMoney: React.FC = () => {
             </Grid>
 
             {/* Exchange Rate Info */}
-            <Card sx={{ mt: 3, backgroundColor: alpha(theme.palette.info.main, 0.1) }}>
-              <CardContent>
-                <Typography variant="subtitle2" color="info.main" gutterBottom>
-                  Exchange Rate Information
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">Exchange Rate:</Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    1 {watchedCurrency} = {exchangeRate.toFixed(4)} USD
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">Transfer Fee:</Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    ${fees.toFixed(2)}
-                  </Typography>
-                </Box>
-                <Divider sx={{ my: 1 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" fontWeight={600}>
-                    Total Amount:
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600} color="primary">
-                    ${calculateTotal().toFixed(2)}
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
+            {exchangeRate && (
+              <Card sx={{ mt: 3, backgroundColor: alpha(theme.palette.info.main, 0.1) }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle2" color="info.main">
+                      Exchange Rate Information
+                    </Typography>
+                    <IconButton size="small" onClick={refreshExchangeRate} disabled={exchangeLoading}>
+                      <Refresh />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2">Exchange Rate:</Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      1 {watchedSourceCurrency} = {exchangeRate.rate.toFixed(4)} {watchedTargetCurrency}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2">You send:</Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      {watchedAmount} {watchedSourceCurrency}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2">Recipient gets:</Typography>
+                    <Typography variant="body2" fontWeight={600} color="primary">
+                      {convertedAmount.toFixed(2)} {watchedTargetCurrency}
+                    </Typography>
+                  </Box>
+                  {fees && (
+                    <>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Transfer Fee:</Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {fees.total.toFixed(2)} {fees.currency}
+                        </Typography>
+                      </Box>
+                      <Divider sx={{ my: 1 }} />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          Total Debit:
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600} color="error">
+                          {totalDebit.toFixed(2)} {watchedSourceCurrency}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </Box>
         );
 
@@ -283,11 +440,16 @@ const SendMoney: React.FC = () => {
                   </Avatar>
                   <Box>
                     <Typography variant="subtitle1" fontWeight={600}>
-                      {watch('recipientName')}
+                      {watch('receiverName')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {watch('recipientEmail')}
+                      ID: {watch('receiverId')}
                     </Typography>
+                    {watch('receiverPhone') && (
+                      <Typography variant="body2" color="text.secondary">
+                        Phone: {watch('receiverPhone')}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
 
@@ -299,17 +461,37 @@ const SendMoney: React.FC = () => {
                       Amount
                     </Typography>
                     <Typography variant="h6" fontWeight={600}>
-                      {watchedAmount} {watchedCurrency}
+                      {watchedAmount} {watchedSourceCurrency}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" color="text.secondary">
-                      Transfer Fee
+                      Recipient Gets
                     </Typography>
-                    <Typography variant="h6" fontWeight={600}>
-                      ${fees.toFixed(2)}
+                    <Typography variant="h6" fontWeight={600} color="primary">
+                      {convertedAmount.toFixed(2)} {watchedTargetCurrency}
                     </Typography>
                   </Grid>
+                  {exchangeRate && (
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Exchange Rate
+                      </Typography>
+                      <Typography variant="body1">
+                        1 {watchedSourceCurrency} = {exchangeRate.rate.toFixed(4)} {watchedTargetCurrency}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {fees && (
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Transfer Fee
+                      </Typography>
+                      <Typography variant="body1">
+                        {fees.total.toFixed(2)} {fees.currency}
+                      </Typography>
+                    </Grid>
+                  )}
                   <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary">
                       Description
@@ -324,10 +506,10 @@ const SendMoney: React.FC = () => {
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="h6">
-                    Total Amount
+                    Total Debit
                   </Typography>
-                  <Typography variant="h5" color="primary" fontWeight={700}>
-                    ${calculateTotal().toFixed(2)}
+                  <Typography variant="h5" color="error" fontWeight={700}>
+                    {totalDebit.toFixed(2)} {watchedSourceCurrency}
                   </Typography>
                 </Box>
               </CardContent>
@@ -359,14 +541,16 @@ const SendMoney: React.FC = () => {
             </Typography>
             
             <Typography variant="body1" color="text.secondary" paragraph>
-              Your transfer of ${watchedAmount} {watchedCurrency} to {watch('recipientName')} has been initiated.
+              Your transfer of {watchedAmount} {watchedSourceCurrency} to {watch('receiverName')} has been initiated.
             </Typography>
 
-            <Chip
-              label="Transaction ID: TXN-2024-001234"
-              variant="outlined"
-              sx={{ mb: 3 }}
-            />
+            {transferResult && (
+              <Chip
+                label={`Transaction ID: ${transferResult.transferId}`}
+                variant="outlined"
+                sx={{ mb: 3 }}
+              />
+            )}
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
               <Button variant="outlined" startIcon={<Receipt />}>
@@ -420,10 +604,11 @@ const SendMoney: React.FC = () => {
                         {activeStep === steps.length - 1 ? null : (
                           <Button
                             variant="contained"
-                            onClick={activeStep === 2 ? handleSubmit(onSubmit) : handleNext}
+                            onClick={activeStep === 2 ? () => handleSubmit(onSubmit as any)() : handleNext}
                             startIcon={activeStep === 2 ? <Send /> : null}
+                            disabled={loading}
                           >
-                            {activeStep === 2 ? 'Send Money' : 'Continue'}
+                            {loading ? 'Processing...' : activeStep === 2 ? 'Send Money' : 'Continue'}
                           </Button>
                         )}
                       </Box>
@@ -436,94 +621,78 @@ const SendMoney: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card>
+          <Card sx={{ position: 'sticky', top: 24 }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 Transfer Summary
               </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Amount
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    {watchedAmount || 0} {watchedCurrency}
-                  </Typography>
-                </Box>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Exchange Rate
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    {exchangeRate.toFixed(4)}
-                  </Typography>
-                </Box>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Transfer Fee
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    ${fees.toFixed(2)}
-                  </Typography>
-                </Box>
-                
-                <Divider />
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body1" fontWeight={600}>
-                    Total
-                  </Typography>
-                  <Typography variant="body1" fontWeight={700} color="primary">
-                    ${calculateTotal().toFixed(2)}
-                  </Typography>
-                </Box>
-              </Box>
 
-              <Alert severity="info" sx={{ mt: 3 }}>
+              {watchedAmount > 0 && (
+                <>
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Send Amount:</Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {watchedAmount} {watchedSourceCurrency}
+                      </Typography>
+                    </Box>
+
+                    {exchangeRate && watchedSourceCurrency !== watchedTargetCurrency && (
+                      <>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">Exchange Rate:</Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {exchangeRate.rate.toFixed(4)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">Recipient Gets:</Typography>
+                          <Typography variant="body2" fontWeight={600} color="primary">
+                            {convertedAmount.toFixed(2)} {watchedTargetCurrency}
+                          </Typography>
+                        </Box>
+                      </>
+                    )}
+
+                    {fees && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Fees:</Typography>
+                        <Typography variant="body2">
+                          {fees.total.toFixed(2)} {fees.currency}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    <Divider sx={{ my: 1 }} />
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        Total Debit:
+                      </Typography>
+                      <Typography variant="subtitle2" fontWeight={600} color="error">
+                        {totalDebit.toFixed(2)} {watchedSourceCurrency}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </>
+              )}
+
+              <Alert severity="info" sx={{ fontSize: '0.875rem' }}>
                 <Typography variant="body2">
-                  <strong>Estimated arrival:</strong> 1-2 business days
+                  💡 Cross-border transfers typically complete within 1-3 business days.
                 </Typography>
               </Alert>
+
+              {exchangeRate && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: alpha(theme.palette.success.main, 0.1), borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Exchange rate updated: {new Date(exchangeRate.timestamp).toLocaleTimeString()}
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
 
-          <Card sx={{ mt: 2 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Security Features
-              </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CheckCircle color="success" fontSize="small" />
-                  <Typography variant="body2">
-                    256-bit SSL encryption
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CheckCircle color="success" fontSize="small" />
-                  <Typography variant="body2">
-                    Fraud protection
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CheckCircle color="success" fontSize="small" />
-                  <Typography variant="body2">
-                    Real-time monitoring
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CheckCircle color="success" fontSize="small" />
-                  <Typography variant="body2">
-                    Regulatory compliance
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
         </Grid>
       </Grid>
     </Box>
