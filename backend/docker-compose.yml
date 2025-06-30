@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - ./logs:/usr/src/app/logs
+    networks:
+      - payments-network
+
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=payments_without_borders
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - payments-network
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - payments-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  payments-network:
+    driver: bridge

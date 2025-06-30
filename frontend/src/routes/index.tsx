@@ -5,6 +5,7 @@ import Login from '../components/Login';
 import Register from '../components/Register';
 import ForgotPassword from '../components/ForgotPassword';
 import Dashboard from '../components/Dashboard';
+import Layout from '../components/Layout';
 import Profile from '../components/Profile';
 import UserProfile from '../components/UserProfile';
 import Security from '../components/Security';
@@ -23,6 +24,7 @@ const AppRoutes: React.FC = () => {
     return (
         <BrowserRouter>
             <Routes>
+                <Route element={<Layout />}>
                     <Route index element={<Home />} />
                     
                     {/* Guest routes - redirect to dashboard if already logged in */}
@@ -86,14 +88,15 @@ const AppRoutes: React.FC = () => {
                     
                     {/* Public but conditionally rendered routes */}
                     <Route path="verify-email" element={<VerifyEmail />} />
-                    <Route path="/transactions/history" element={
-                        <AuthGuard>
+                    <Route path="transactions/history" element={
+                        <AuthGuard requireAuth>
                             <TransactionHistory />
                         </AuthGuard>
                     } />
                     <Route path="*" element={<NotFound />} />
-                </Routes>
-            </BrowserRouter>
+                </Route>
+            </Routes>
+        </BrowserRouter>
     );
 };
 
