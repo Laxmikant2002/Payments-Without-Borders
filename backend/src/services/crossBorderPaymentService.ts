@@ -325,20 +325,95 @@ export class CrossBorderPaymentService {
    */
   private getMockExchangeRate(fromCurrency: string, toCurrency: string): ExchangeRate {
     const mockRates: { [key: string]: number } = {
+      // USD pairs
       'USD-EUR': 0.85,
       'USD-GBP': 0.73,
       'USD-NGN': 760.50,
       'USD-KES': 150.25,
+      'USD-GHS': 12.80,
+      'USD-CAD': 1.25,
+      'USD-AUD': 1.35,
+      'USD-JPY': 110.0,
+      'USD-CHF': 0.92,
+      'USD-CNY': 6.45,
+      
+      // EUR pairs
       'EUR-USD': 1.18,
       'EUR-GBP': 0.86,
       'EUR-NGN': 895.60,
+      'EUR-KES': 177.30,
+      'EUR-GHS': 15.10,
+      'EUR-CAD': 1.47,
+      'EUR-AUD': 1.59,
+      'EUR-JPY': 129.5,
+      'EUR-CHF': 1.08,
+      'EUR-CNY': 7.60,
+      
+      // GBP pairs
       'GBP-USD': 1.37,
       'GBP-EUR': 1.16,
-      'NGN-USD': 0.0013
+      'GBP-NGN': 1041.70,
+      'GBP-KES': 206.00,
+      'GBP-GHS': 17.54,
+      'GBP-CAD': 1.71,
+      'GBP-AUD': 1.85,
+      'GBP-JPY': 150.7,
+      'GBP-CHF': 1.26,
+      'GBP-CNY': 8.84,
+      
+      // African currencies to major currencies
+      'NGN-USD': 0.0013,
+      'NGN-EUR': 0.0011,
+      'NGN-GBP': 0.00096,
+      'KES-USD': 0.0067,
+      'KES-EUR': 0.0056,
+      'KES-GBP': 0.0049,
+      'GHS-USD': 0.078,
+      'GHS-EUR': 0.066,
+      'GHS-GBP': 0.057,
+      
+      // Cross-African pairs
+      'NGN-KES': 0.198,
+      'KES-NGN': 5.06,
+      'NGN-GHS': 0.017,
+      'GHS-NGN': 59.4,
+      'KES-GHS': 0.085,
+      'GHS-KES': 11.7,
+      
+      // Other major pairs
+      'CAD-USD': 0.80,
+      'AUD-USD': 0.74,
+      'JPY-USD': 0.0091,
+      'CHF-USD': 1.09,
+      'CNY-USD': 0.155
     };
 
     const key = `${fromCurrency}-${toCurrency}`;
-    const rate = mockRates[key] || 1;
+    const rate = mockRates[key];
+    
+    if (!rate) {
+      // If direct rate not found, try to calculate inverse
+      const inverseKey = `${toCurrency}-${fromCurrency}`;
+      const inverseRate = mockRates[inverseKey];
+      if (inverseRate) {
+        return {
+          fromCurrency,
+          toCurrency,
+          rate: 1 / inverseRate,
+          timestamp: new Date(),
+          provider: 'Mock (Calculated)'
+        };
+      }
+      
+      // Default to 1 if no rate found (same currency or unsupported pair)
+      return {
+        fromCurrency,
+        toCurrency,
+        rate: 1,
+        timestamp: new Date(),
+        provider: 'Mock (Default)'
+      };
+    }
 
     return {
       fromCurrency,

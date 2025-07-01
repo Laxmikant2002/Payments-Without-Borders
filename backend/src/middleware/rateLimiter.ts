@@ -5,24 +5,31 @@ import { logger } from '../utils/logger';
 
 let rateLimiterInstance: RateLimiterRedis | RateLimiterMemory;
 
+// Environment-aware rate limiting configuration
+const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.TESTING === 'true';
+const maxRequests = isTestEnvironment ? 1000 : parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100');
+const windowMinutes = isTestEnvironment ? 1 : parseInt(process.env.RATE_LIMIT_WINDOW || '15');
+
 try {
   // Try to use Redis rate limiter
   const redisClient = getRedisClient();
   rateLimiterInstance = new RateLimiterRedis({
     storeClient: redisClient,
     keyPrefix: 'rate_limit',
-    points: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
-    duration: parseInt(process.env.RATE_LIMIT_WINDOW || '15') * 60,
+    points: maxRequests,
+    duration: windowMinutes * 60,
+    execEvenly: true, // Spread requests evenly across the duration
   });
-  logger.info('Using Redis rate limiter');
+  logger.info(`Using Redis rate limiter: ${maxRequests} requests per ${windowMinutes} minutes`);
 } catch (error) {
   // Fall back to memory rate limiter if Redis is not available
   rateLimiterInstance = new RateLimiterMemory({
     keyPrefix: 'rate_limit',
-    points: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
-    duration: parseInt(process.env.RATE_LIMIT_WINDOW || '15') * 60,
+    points: maxRequests,
+    duration: windowMinutes * 60,
+    execEvenly: true,
   });
-  logger.warn('Redis not available, using memory rate limiter for development');
+  logger.warn(`Redis not available, using memory rate limiter: ${maxRequests} requests per ${windowMinutes} minutes`);
 }
 
 export const rateLimiter = async (
@@ -30,6 +37,12 @@ export const rateLimiter = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  // Skip rate limiting in test mode
+  if (isTestEnvironment) {
+    next();
+    return;
+  }
+
   try {
     const key = req.ip || req.connection.remoteAddress || 'unknown';
     await rateLimiterInstance.consume(key);

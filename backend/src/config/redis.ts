@@ -10,7 +10,11 @@ export const connectRedis = async (): Promise<void> => {
     redisClient = createClient({
       url: redisUrl,
       socket: {
-        reconnectStrategy: (retries) => Math.min(retries * 50, 5000)
+        reconnectStrategy: (retries) => {
+          if (retries > 10) return false; // Stop retrying after 10 attempts
+          return Math.min(retries * 100, 3000);
+        },
+        connectTimeout: 5000
       }
     });
 
@@ -33,7 +37,10 @@ export const connectRedis = async (): Promise<void> => {
     await redisClient.connect();
   } catch (error) {
     logger.error('Failed to connect to Redis:', error);
-    throw error;
+    // Don't throw in development - allow the app to continue without Redis
+    if (process.env.NODE_ENV !== 'development') {
+      throw error;
+    }
   }
 };
 

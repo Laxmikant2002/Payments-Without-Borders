@@ -88,6 +88,9 @@ app.get('/', (req, res) => {
 // Socket.IO handling
 socketHandler(io);
 
+// Make io available in routes
+app.set('io', io);
+
 // Error handling middleware (should be last)
 app.use(errorHandler);
 
